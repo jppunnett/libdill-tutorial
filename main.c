@@ -33,13 +33,14 @@ int main(int argc, char const *argv[]) {
     while(1) {
         int s = tcp_accept(ls, NULL, -1);
         assert(s >= 0);
-        handle_conn(s);
+        int cr = go(handle_conn(s));
+        assert(cr >= 0);
     }
 
     return 0;
 }
 
-void handle_conn(int s) {
+coroutine void handle_conn(int s) {
     printf("New connection. Socket id: %d\n", s);
     s = crlf_start(s);
     assert(s >= 0);
