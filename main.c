@@ -12,6 +12,10 @@
 #include <string.h>
 #include <unistd.h>
 
+/* Handler for client connection */
+void handle_conn(int );
+
+
 int main(int argc, char const *argv[]) {
     int port = 5555;
     if(argc > 1) port = atoi(argv[1]);
@@ -19,7 +23,7 @@ int main(int argc, char const *argv[]) {
     ipaddr addr;
     int rc = ipaddr_local(&addr, NULL, port, 0);
     assert(rc == 0);
-    /* Create a socket to aisten at addr for incoming connections */
+    /* Create a socket to listen at addr for incoming connections */
     int ls = tcp_listen(&addr, 10);
     if(ls < 0) {
         perror("Can't open listening socket.");
@@ -29,9 +33,30 @@ int main(int argc, char const *argv[]) {
     while(1) {
         int s = tcp_accept(ls, NULL, -1);
         assert(s >= 0);
-        printf("New connect. Socket id: %d\n", s);
-        hclose(s);
+        handle_conn(s);
     }
 
     return 0;
+}
+
+void handle_conn(int s) {
+    printf("New connection. Socket id: %d\n", s);
+    s = crlf_start(s);
+    assert(s >= 0);
+    /* Send a message to the client */
+    int rc = msend(s, "Hey! What's your name?", 22, -1);
+    if(rc != 0) goto cleanup;
+    /* Receive the client's name */
+    char name[256];
+    size_t sz = mrecv(s, name, sizeof(name), -1);
+    if(sz < 0) goto cleanup;
+    name[sz] = 0;
+    /* Send the client a polite greeting */
+    char greeting[256];
+    rc = snprintf(greeting, sizeof(greeting), "Hola, %s!", name);
+    msend(s, greeting, rc, -1);
+
+cleanup:
+    rc = hclose(s);
+    assert(rc == 0);
 }
