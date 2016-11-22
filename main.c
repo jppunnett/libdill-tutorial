@@ -57,7 +57,7 @@ coroutine void handle_conn(int s) {
     printf("msend1: rc=%d, errno=%d\n", rc, errno);
     char name[256];
     /* Receive the client's name */
-    size_t sz = mrecv(s, name, sizeof(name), DEADLINE);
+    ssize_t sz = mrecv(s, name, sizeof(name), DEADLINE);
     printf("mrecv: sz=%zu, errno=%d\n", sz, errno);
     /* It's possible for sz >= 0 and for errno to != 0 */
     if(sz < 0 || errno) goto cleanup;
