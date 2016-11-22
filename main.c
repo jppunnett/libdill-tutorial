@@ -13,11 +13,17 @@
 #include <unistd.h>
 
 /* Handler for client connection */
-void handle_conn(int );
+void handle_conn(int, int);
+/* Statistics coroutine */
+void stats(int);
 
 /* Ten-second deadline */
 #define DEADLINE (now() + 10000)
 
+/* Events to track */
+#define CONN_ESTABLISHED    1
+#define CONN_SUCCEEDED      2
+#define CONN_FAILED         3
 
 int main(int argc, char const *argv[]) {
     int port = 5555;
@@ -32,7 +38,14 @@ int main(int argc, char const *argv[]) {
         perror("Can't open listening socket.");
         return 1;
     }
-    /* Listen for incoming connection */
+    /* Channel for stats and handler coroutines to communicate. */
+    int ch = channel(sizeof(int), 0);
+    assert(ch >= 0);
+    /* Launch the stats coroutine */
+    int cr = go(stats(ch));
+    assert(cr >= 0);
+
+    /* Forever listen for incoming connection */
     while(1) {
         int s = tcp_accept(ls, NULL, DEADLINE);
         if(s < 0) {
@@ -41,18 +54,21 @@ int main(int argc, char const *argv[]) {
             else
                 break;
         }
-        int cr = go(handle_conn(s));
+        int cr = go(handle_conn(s, ch));
         assert(cr >= 0);
     }
     return 0;
 }
 
-coroutine void handle_conn(int s) {
-    printf("New connection. Socket id: %d\n", s);
+coroutine void handle_conn(int s, int ch) {
     s = crlf_start(s);
     assert(s >= 0);
+    /* Record established connection */
+    int op = CONN_ESTABLISHED;
+    int rc = chsend(ch, &op, sizeof(op), -1);
+    assert(rc >= 0);
     /* Send a message to the client */
-    int rc = msend(s, "Hey! What's your name?", 22, DEADLINE);
+    rc = msend(s, "Hey! What's your name?", 22, DEADLINE);
     if(rc != 0) goto cleanup;
     printf("msend1: rc=%d, errno=%d\n", rc, errno);
     char name[256];
@@ -69,6 +85,36 @@ coroutine void handle_conn(int s) {
     printf("msend2: rc=%d, errno=%d\n", rc, errno);
 
 cleanup:
+    /* Record connection status */
+    op = errno == 0 ? CONN_SUCCEEDED : CONN_FAILED;
+    rc = chsend(ch, &op, sizeof(op), -1);
+    assert(rc == 0);
     rc = hclose(s);
     assert(rc == 0);
+}
+
+coroutine void stats(int ch) {
+    int active = 0, succeeded = 0, failed = 0;
+    while(1) {
+        int op;
+        int rc = chrecv(ch, &op, sizeof(op), -1);
+        assert(rc == 0);
+
+        switch(op) {
+        case CONN_ESTABLISHED:
+            ++active;
+            break;
+        case CONN_SUCCEEDED:
+            --active;
+            ++succeeded;
+            break;
+        case CONN_FAILED:
+            --active;
+            ++failed;
+            break;
+        }
+
+        printf("active: %-5d  succeeded: %-5d  failed: %-5d\n",
+                    active, succeeded, failed);
+    }
 }
