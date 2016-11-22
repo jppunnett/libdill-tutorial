@@ -48,11 +48,9 @@ int main(int argc, char const *argv[]) {
     /* Forever listen for incoming connection */
     while(1) {
         int s = tcp_accept(ls, NULL, DEADLINE);
-        if(s < 0) {
-            if(errno == ETIMEDOUT)
-                continue;
-            else
-                break;
+        if(s < 0 || errno != ETIMEDOUT) {
+            perror("tcp_accept failed.");
+            break;
         }
         int cr = go(handle_conn(s, ch));
         assert(cr >= 0);
