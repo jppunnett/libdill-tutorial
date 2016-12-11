@@ -1,0 +1,2 @@
+This dir contains programs from The Go Programming Language book but written
+in C using libdill and dsock.
