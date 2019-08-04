@@ -1,5 +1,5 @@
 /* Little boring program to learn how libdill supports concurrency.
-   This one uses the generator "pattern" */
+   This one uses the "generator pattern" */
 
 #include <libdill.h>
 #include <stdio.h>
@@ -24,18 +24,20 @@ coroutine void boring(const char* msg, int ch)
 
 int boring_gen(const char* msg)
 {
-    int ch = channel(sizeof(char *), 0);
-    assert(ch >= 0);
-    int cr = go(boring(msg, ch));
-    assert(cr >= 0);
-    return ch;
+    int ch[2];
+    int rc = chmake(ch);
+    assert(rc == 0);
+    int bundle = go(boring(msg, ch[1]));
+    assert(bundle >= 0);
+    return ch[0];
 }
 
 int main(int argc, char const *argv[])
 {
     printf("I'm listening.\n");
     int ch = boring_gen("Boring!");
-    for(int i = 0; i < 5; ++i) {
+    int i;
+    for(i = 0; i < 5; ++i) {
         char *msg = NULL;
         int rc = chrecv(ch, &msg, sizeof(msg), -1);
         assert(rc == 0);
