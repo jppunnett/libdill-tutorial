@@ -12,18 +12,20 @@ coroutine void boring(int start_from, int ch)
     while(1) {
         int rc = chsend(ch, &start_from, sizeof(start_from), -1);
         assert(rc == 0);
-        msleep(now() + (500 + (rand() % 1000)));
+        int64_t sleep_for = now() + (500 + (rand() % 1000));
+        msleep(sleep_for);
         ++start_from;
     }
 }
 
 int boring_gen(int start_from)
 {
-    int ch = channel(sizeof(int), 0);
-    assert(ch >= 0);
-    int cr = go(boring(start_from, ch));
-    assert(cr >= 0);
-    return ch;
+    int ch[2];
+    int rc = chmake(ch);
+    assert(rc == 0);
+    int bundle = go(boring(start_from, ch[1]));
+    assert(bundle >= 0);
+    return ch[0];
 }
 
 coroutine void timeout(int ms, int ch)
@@ -36,37 +38,40 @@ coroutine void timeout(int ms, int ch)
 
 int timeout_gen(int ms)
 {
-    int ch = channel(sizeof(int), 0);
-    assert(ch >= 0);
-    int cr = go(timeout(ms, ch));
-    assert(cr >= 0);
-    return ch;
+    int ch[2];
+    int rc = chmake(ch);
+    assert(rc == 0);
+    int bundle = go(timeout(ms, ch[1]));
+    assert(bundle >= 0);
+    return ch[0];
 }
 
 int main(int argc, char const *argv[])
 {
+    const int wait_for_ms = 1000;
+
     srand(time(NULL));
     printf("Starting.\n");
 
-    int joe_count = 0;
+    int boring_count = 0;
     int done = 0;
     struct chclause clauses[] = {
-        {CHRECV, boring_gen(10), &joe_count, sizeof(joe_count)},
-        {CHRECV, timeout_gen(1000), &done, sizeof(done)}
+        {CHRECV, boring_gen(10), &boring_count, sizeof(boring_count)},
+        {CHRECV, timeout_gen(wait_for_ms), &done, sizeof(done)}
     };
     
     while(!done) {
         int rc = choose(clauses, 2, -1);
-        assert(rc >= 0);
+        assert(rc >= 0 && errno ==0);
         switch(rc) {
         case 0:
-            printf("Joe's count: %d\n", joe_count);
+            printf("Boring count: %d\n", boring_count);
             /* Reset timer */
-            clauses[1].ch = timeout_gen(1000);
+            clauses[1].ch = timeout_gen(wait_for_ms);
             break;
         case 1:
-            /* Joe took too long to answer. */
-            printf("Boring! Leaving.\n");
+            /* Boring took too long to answer. */
+            printf("Too long, Boring! Leaving.\n");
             break;
         default:
             printf("No one ready...\n");
