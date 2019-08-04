@@ -34,7 +34,8 @@ void printerr(int err)
 
 coroutine void boring(const char* msg, int ch)
 {
-    for(int i = 0; i < 5; ++i) {
+    int i;
+    for(i = 0; i < 5; ++i) {
         char *buf = malloc(128);
         assert(buf);
         int n = snprintf(buf, 128, "%s %d", msg, i);
@@ -48,15 +49,17 @@ coroutine void boring(const char* msg, int ch)
 
 int main(int argc, char const *argv[])
 {
-    int ch = channel(sizeof(char *), 0);
-    assert(ch >= 0);
+    int ch[2];
+    int rc = chmake(ch);
+    assert(rc == 0);
     printf("I'm listening.\n");
 
-    go(boring("Boring!", ch));
+    go(boring("Boring!", ch[1]));
 
-    for(int i = 0; i < 5; ++i) {
+    int i;
+    for(i = 0; i < 5; ++i) {
         char *msg = NULL;
-        int rc = chrecv(ch, &msg, sizeof(msg), -1);
+        int rc = chrecv(ch[0], &msg, sizeof(msg), -1);
         assert(rc == 0);
         assert(msg);
         printf("You say: %s\n", msg);
