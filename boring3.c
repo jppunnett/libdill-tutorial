@@ -1,5 +1,5 @@
 /* Little boring program to learn how libdill supports concurrency.
-   This one uses the generator "pattern" */
+   This one uses the "generator pattern" */
 
 #include <libdill.h>
 #include <stdio.h>
@@ -25,28 +25,30 @@ coroutine void boring(const char* msg, int ch)
 
 int boring_gen(const char* msg)
 {
-    int ch = channel(sizeof(char *), 0);
-    assert(ch >= 0);
-    int cr = go(boring(msg, ch));
-    assert(cr >= 0);
-    return ch;
+    int ch[2];
+    int rc = chmake(ch);
+    assert(rc == 0);
+    int hbundle = go(boring(msg, ch[1]));
+    assert(hbundle >= 0);
+    return ch[0];
 }
 
 int main(int argc, char const *argv[])
 {
     srand(time(NULL));
     printf("I'm listening.\n");
-    int joe = boring_gen("Joe");
-    int ann = boring_gen("Ann");
-    for(int i = 0; i < 5; ++i) {
+    int joech = boring_gen("Joe");
+    int annch = boring_gen("Ann");
+    int i;
+    for(i = 0; i < 5; ++i) {
         char *msg = NULL;
-        int rc = chrecv(joe, &msg, sizeof(msg), -1);
+        int rc = chrecv(joech, &msg, sizeof(&msg), -1);
         assert(rc == 0);
         assert(msg);
         printf("%s\n", msg);
         free(msg);
 
-        rc = chrecv(ann, &msg, sizeof(msg), -1);
+        rc = chrecv(annch, &msg, sizeof(&msg), -1);
         assert(rc == 0);
         assert(msg);
         printf("%s\n", msg);
