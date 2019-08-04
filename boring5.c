@@ -1,5 +1,5 @@
 /* Little boring program to learn how libdill supports concurrency.
-   This one uses select/choose */
+   This one uses choose (like Go lang select clause) */
 
 #include <libdill.h>
 #include <stdio.h>
@@ -16,21 +16,21 @@ coroutine void boring(const char* msg, int ch)
         int n = snprintf(buf, 128, "%s %d", msg, i);
         assert(n >= 0);
         buf[n] = 0;
-        // printf("sizeof(buf): %zu, sizeof(&buf): %zu\n", sizeof(buf), sizeof(&buf));
         int rc = chsend(ch, &buf, sizeof(buf), -1);
         assert(rc == 0);
-        msleep(now() + (500 + (rand() % 1000)));
+        msleep(now() + rand() % 1000);
         ++i;
     }
 }
 
 int boring_gen(const char* msg)
 {
-    int ch = channel(sizeof(char *), 0);
-    assert(ch >= 0);
-    int cr = go(boring(msg, ch));
-    assert(cr >= 0);
-    return ch;
+    int ch[2];
+    int rc = chmake(ch);
+    assert(rc == 0);
+    int hbundle = go(boring(msg, ch[1]));
+    assert(hbundle >= 0);
+    return ch[0];
 }
 
 int main(int argc, char const *argv[])
@@ -47,14 +47,14 @@ int main(int argc, char const *argv[])
     char *ann_says = NULL;
 
     struct chclause clauses[] = {
-        {CHRECV, joe, &joe_says, sizeof(joe_says)},
-        {CHRECV, ann, &ann_says, sizeof(ann_says)}
+        {CHRECV, joe, &joe_says, sizeof(&joe_says)},
+        {CHRECV, ann, &ann_says, sizeof(&ann_says)}
     };
     
-    for(int i = 0; i < 10; ++i) {
+    int i;
+    for(i = 0; i < 10; ++i) {
         int rc = choose(clauses, 2, -1);
-        assert(rc >= 0);
-        // printf("clause: %d\n", rc);
+        assert(rc >= 0 && errno == 0);
         char **msg = clauses[rc].val;
         assert(msg);
         printf("%s\n", *msg);
