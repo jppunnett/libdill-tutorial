@@ -39,22 +39,28 @@ coroutine void fanIn(int child_ch, int parent_ch)
 
 int fanIn_gen(int ch1, int ch2)
 {
-    int ch = channel(sizeof(char *), 0);
-    assert(ch >= 0);
-    int cr = go(fanIn(ch1, ch));
-    assert(cr >= 0);
-    cr = go(fanIn(ch2, ch));
-    assert(cr >= 0);
-    return ch;
+    int ch[2];
+    int rc = chmake(ch);
+    assert(rc == 0);
+
+    int hbundle;
+    hbundle = go(fanIn(ch1, ch[1]));
+    assert(hbundle >= 0);
+    
+    hbundle = go(fanIn(ch2, ch[1]));
+    assert(hbundle >= 0);
+    
+    return ch[0];
 }
 
 int boring_gen(const char* msg)
 {
-    int ch = channel(sizeof(char *), 0);
-    assert(ch >= 0);
-    int cr = go(boring(msg, ch));
-    assert(cr >= 0);
-    return ch;
+    int ch[2];
+    int rc = chmake(ch);
+    assert(rc == 0);
+    int hbundle = go(boring(msg, ch[1]));
+    assert(hbundle >= 0);
+    return ch[0];
 }
 
 int main(int argc, char const *argv[])
@@ -64,7 +70,9 @@ int main(int argc, char const *argv[])
     printf("I'm listening.\n");
     int ch = fanIn_gen(boring_gen("Joe"), boring_gen("Ann"));
     assert(ch >= 0);
-    for(int i = 0; i < 10; ++i) {
+    
+    int i;
+    for(i = 0; i < 10; ++i) {
         char *msg = NULL;
         int rc = chrecv(ch, &msg, sizeof(msg), -1);
         assert(rc == 0);
