@@ -19,11 +19,12 @@ coroutine void boring(int start_from, int ch)
 
 int boring_gen(int start_from)
 {
-    int ch = channel(sizeof(int), 0);
-    assert(ch >= 0);
-    int cr = go(boring(start_from, ch));
-    assert(cr >= 0);
-    return ch;
+    int ch[2];
+    int rc = chmake(ch);
+    assert(rc == 0);
+    int bundle = go(boring(start_from, ch[1]));
+    assert(bundle >= 0);
+    return ch[0];
 }
 
 coroutine void timeout(int ms, int ch)
@@ -36,11 +37,12 @@ coroutine void timeout(int ms, int ch)
 
 int timeout_gen(int ms)
 {
-    int ch = channel(sizeof(int), 0);
-    assert(ch >= 0);
-    int cr = go(timeout(ms, ch));
-    assert(cr >= 0);
-    return ch;
+    int ch[2];
+    int rc = chmake(ch);
+    assert(rc == 0);
+    int bundle = go(timeout(ms, ch[1]));
+    assert(bundle >= 0);
+    return ch[0];
 }
 
 int main(int argc, char const *argv[])
@@ -57,7 +59,7 @@ int main(int argc, char const *argv[])
     
     while(!done) {
         int rc = choose(clauses, 2, -1);
-        assert(rc >= 0);
+        assert(rc >= 0 && errno == 0);
         switch(rc) {
         case 0:
             printf("Joe's count: %d\n", joe_count);
