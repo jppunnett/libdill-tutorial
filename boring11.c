@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#define CH_COPY(ch_from, ch_to) do { ch_to[0] = ch_from[0]; ch_to[1] = ch_from[1];; } while(0)
+
 coroutine void pass_it_on(int left_ch, int right_ch)
 {
     int rc = 0;
@@ -28,29 +30,37 @@ coroutine void start(int right)
 int main(int argc, char const *argv[])
 {
     const int n = 10000;
-    int cr = 0;
+    int counter = 0;
     
-    int leftmost = channel(sizeof(int), 0);
-    assert(leftmost >= 0);
+    int bundle = 0;
+    int rc = 0;
     
-    int right = leftmost;
-    int left = leftmost;
-    for (int i = 0; i < n; ++i)
-    {
-        right = channel(sizeof(int), 0);
-        assert(right >= 0);
+    int leftmost[2];
+    rc = chmake(leftmost);
+    assert(rc == 0);
+    
+    int right[2];
+    CH_COPY(leftmost, right);
+    
+    int left[2];
+    CH_COPY(leftmost, left);
+    
+    int i;
+    for(i = 0; i < n; ++i) {
+        rc = chmake(right);
+        assert(rc == 0);
 
-        cr = go(pass_it_on(left, right));
-        assert(cr >= 0);
+        bundle = go(pass_it_on(left[1], right[0]));
+        assert(bundle >= 0);
         
-        left = right;
+        CH_COPY(right, left);
     }
 
-    cr = go(start(right));
-    assert(cr >= 0);
+    bundle = go(start(right[1]));
+    assert(bundle >= 0);
 
-    int counter = 0;
-    int rc = chrecv(leftmost, &counter, sizeof(counter), -1);
+    
+    rc = chrecv(leftmost[0], &counter, sizeof(counter), -1);
     assert(rc == 0);
 
     printf("Counter: %d\n", counter);
