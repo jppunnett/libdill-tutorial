@@ -22,7 +22,7 @@ coroutine void boring(const char* msg, int ch)
     }
 }
 
-int boring_gen(const char* msg)
+int boring_start(const char* msg)
 {
     int ch[2];
     int rc = chmake(ch);
@@ -35,9 +35,8 @@ int boring_gen(const char* msg)
 int main(int argc, char const *argv[])
 {
     printf("I'm listening.\n");
-    int ch = boring_gen("Boring!");
-    int i;
-    for(i = 0; i < 5; ++i) {
+    int ch = boring_start("Boring!");
+    for(int i = 0; i < 5; ++i) {
         char *msg = NULL;
         int rc = chrecv(ch, &msg, sizeof(msg), -1);
         assert(rc == 0);

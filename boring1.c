@@ -34,14 +34,13 @@ void printerr(int err)
 
 coroutine void boring(const char* msg, int ch)
 {
-    int i;
-    for(i = 0; i < 5; ++i) {
+    for(int i = 0; i < 5; ++i) {
         char *buf = malloc(128);
         assert(buf);
         int n = snprintf(buf, 128, "%s %d", msg, i);
         assert(n >= 0);
         buf[n] = 0;
-        int rc = chsend(ch, &buf, sizeof(&buf), -1);
+        int rc = chsend(ch, &buf, sizeof(buf), -1);
         if(rc != 0) printerr(errno);
         assert(rc == 0);
     }
@@ -56,8 +55,7 @@ int main(int argc, char const *argv[])
 
     go(boring("Boring!", ch[1]));
 
-    int i;
-    for(i = 0; i < 5; ++i) {
+    for(int i = 0; i < 5; ++i) {
         char *msg = NULL;
         int rc = chrecv(ch[0], &msg, sizeof(msg), -1);
         assert(rc == 0);

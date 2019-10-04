@@ -1,8 +1,7 @@
 /* Little boring program to learn how libdill supports concurrency */
 
-#include <libdill.h>
-
 #include <stdio.h>
+#include <libdill.h>
 
 coroutine void boring(const char* msg)
 {
@@ -16,8 +15,8 @@ coroutine void boring(const char* msg)
 
 int main(int argc, char const *argv[])
 {
-    go(boring("Boring!"));
     printf("I'm listening.\n");
+    go(boring("Boring!"));
     msleep(now() + 5000);
     printf("You're boring, I'm leaving.\n");
     return 0;
