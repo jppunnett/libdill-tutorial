@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <libdill.h>
 
+#include "ticker.h"
+
 /* Channel to communicate file sizes */
 int filesz_ch[2];
 
@@ -41,45 +43,6 @@ walkdirs(char *dirs[], int ndirs)
         perror("chdone");
         exit(EXIT_FAILURE);
     }
-}
-
-coroutine void
-time_startTick(int ch, int64_t interval)
-{
-    int rc;
-    int64_t t;
-    while(1) {
-        rc = msleep(now() + interval);
-        if(rc == -1) return;
-        t = now();
-        rc = chsend(ch, &t, sizeof(t), -1);
-        if(rc == -1) return; 
-    }
-}
-
-/* time_Tick returns a channel through which the caller will receive the current
-   time every interval (ms). */
-int
-time_Tick(int64_t interval)
-{
-    int ch[2];
-    int rc = chmake(ch);
-    if(rc != 0) {
-	    perror("Could not make timer channel.");
-	    return -1;
-    }
-    /* An interval of zero means never tick, but we return the channel so the
-       caller can still receive on the channel. In this case it will never 
-       receive any tick. */
-    if(interval == 0) return ch[0];
-
-    rc = go(time_startTick(ch[1], interval));
-    if(rc < 0) {
-	    perror("Could not start ticker coroutine.");
-	    return -1;
-    }
-
-    return ch[0];
 }
 
 void
@@ -128,7 +91,7 @@ main(int argc, char *argv[])
     }
 
     /* Start ticker to periodically display results */
-    int ticker_ch = time_Tick(verbose ? 500 : 0);
+    int ticker_ch = TickEvery(verbose ? 500 : 0);
     if(ticker_ch < 0) {
         perror("time_Tick");
         exit(EXIT_FAILURE);
