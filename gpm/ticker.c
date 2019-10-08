@@ -2,7 +2,8 @@
 #include <assert.h>
 #include <stdio.h>
 
-static coroutine void startTicker(int ch, int64_t ms)
+static coroutine void
+startTicker(int ch, int64_t ms)
 {
 	assert(ms > 0);
 
@@ -26,8 +27,11 @@ static coroutine void startTicker(int ch, int64_t ms)
 
 }
 
-int TickEvery(int64_t ms)
+int
+TickEvery(int64_t ms)
 {
+	assert(ms >= 0);
+
 	int ch[2];
 	int rc = chmake(ch);
 	if (rc != 0) {
@@ -35,16 +39,12 @@ int TickEvery(int64_t ms)
 		return -1;
 	}
 
-	/* An interval of zero means never tick, but we return the channel so the
-	   caller can still receive on the channel. In this case it will never 
-	   receive any tick. */
-	if (ms == 0)
-		return ch[0];
-
-	rc = go(startTicker(ch[1], ms));
-	if (rc < 0) {
-		perror("Could not start ticker coroutine.");
-		return -1;
+	if (ms > 0) {
+		rc = go(startTicker(ch[1], ms));
+		if (rc < 0) {
+			perror("Could not start ticker coroutine.");
+			return -1;
+		}
 	}
 
 	return ch[0];

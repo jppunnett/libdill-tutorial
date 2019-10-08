@@ -31,7 +31,6 @@ walkdirs(char *dirs[], int ndirs)
 {
     int rc = 0;
     for(int i = 0; i < ndirs; ++i) {
-        // printf("dirs[i] = %s\n", dirs[i]);
         rc = nftw(dirs[i], recordsz, 20, FTW_PHYS);
         if(rc != 0) {
             perror("nftw");
@@ -65,8 +64,8 @@ main(int argc, char *argv[])
             verbose = 1;
             break;
         }
-	// TODO: Add help option
     }
+    
     /* Default to current directory if no directories provided */
     char **roots = curdir;
     int ndirs = 1;
@@ -96,6 +95,7 @@ main(int argc, char *argv[])
         perror("time_Tick");
         exit(EXIT_FAILURE);
     }
+
     int64_t size = 0;
     int64_t tick = 0;
     struct chclause clauses[] = {
