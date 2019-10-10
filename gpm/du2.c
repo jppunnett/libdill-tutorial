@@ -1,52 +1,35 @@
 /* Compute disk usage of files in a dir. Adapted from The Go Programming
    Language book.
 */
-#define _XOPEN_SOURCE 500
-#include <ftw.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <libdill.h>
 
 #include "ticker.h"
 
-/* Channel to communicate file sizes */
-int filesz_ch[2];
 
-static int
-recordsz(const char *fpath, const struct stat *sb,
-	 int tflag, struct FTW *ftwbuf)
-{
-	int64_t fsize = 0;
-	int rc = 0;
-	if (tflag == FTW_F) {
-		fsize = sb->st_size;
-		rc = chsend(filesz_ch[1], &fsize, sizeof(fsize), -1);
-		if (rc != 0)
-			return 1;
-	}
-	return 0;
-}
-
-coroutine void walkdirs(char *dirs[], int ndirs)
-{
-	int rc = 0;
-	for (int i = 0; i < ndirs; ++i) {
-		rc = nftw(dirs[i], recordsz, 20, FTW_PHYS);
-		if (rc != 0) {
-			perror("nftw");
-			exit(EXIT_FAILURE);
-		}
-	}
-	rc = chdone(filesz_ch[1]);
-	if (rc != 0) {
-		perror("chdone");
-		exit(EXIT_FAILURE);
-	}
-}
-
-void printDirUsage(int64_t nfiles, int64_t nbytes)
+static void printDirUsage(int64_t nfiles, int64_t nbytes)
 {
 	printf("%ld files\t%.1f GB\n", nfiles, nbytes / 1e9);
+}
+
+// walkDir: recursivly walks dir reporting files sizes through ch
+void walkDir(char *dir, int ch)
+{
+	printf("Walking <%s>...\n", dir);
+}
+
+// walkDirStart: coroutine to walk each directory in dirs.
+coroutine void walkDirStart(char *dirs[], int ndirs, int ch)
+{
+	for (int i = 0; i < ndirs; ++i) {
+		walkDir(dirs[i], ch);
+	}
+
+	int rc = chdone(ch);
+	if (rc != 0) {
+		perror("chdone on size channel failed");
+	}
 }
 
 
@@ -54,6 +37,7 @@ char *curdir[] = { "." };
 
 int main(int argc, char *argv[])
 {
+	int rc;
 	int verbose = 0;
 	int c;
 	while ((c = getopt(argc, argv, "v")) != -1) {
@@ -72,18 +56,17 @@ int main(int argc, char *argv[])
 		ndirs = argc - optind;
 	}
 
-	int rc;
-
-	/* Start coroutine to traverse directories */
+	/* Channel to report files sizes */
+	int filesz_ch[2];
 	rc = chmake(filesz_ch);
-	if (rc != 0) {
-		perror("Cannot make file size channel.");
+	if(rc != 0) {
+		perror("could not make size channel");
 		exit(EXIT_FAILURE);
 	}
 
-	int bundle = go(walkdirs(roots, ndirs));
-	if (bundle < 0) {
-		perror("go");
+	rc = go(walkDirStart(roots, ndirs, filesz_ch[1]));
+	if(rc < 0) {
+		perror("could not start walkDirStart");
 		exit(EXIT_FAILURE);
 	}
 
@@ -94,6 +77,8 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	int64_t nfiles = 0, nbytes = 0;
+
 	int64_t size = 0;
 	int64_t tick = 0;
 	struct chclause clauses[] = {
@@ -101,7 +86,6 @@ int main(int argc, char *argv[])
 		{CHRECV, ticker_ch, &tick, sizeof(tick)}
 	};
 
-	int64_t nfiles = 0, nbytes = 0;
 	int done = 0;
 	while (!done) {
 		rc = choose(clauses, 2, -1);
@@ -121,13 +105,16 @@ int main(int argc, char *argv[])
 			nbytes += size;
 			break;
 		case 1:
-			printDirUsage(nfiles, nbytes);
+			if(verbose) {
+				printDirUsage(nfiles, nbytes);
+			}
 			break;
 		case -1:
 			perror("choose");
 			exit(EXIT_FAILURE);
 		}
 	}
+
 	printDirUsage(nfiles, nbytes);
 	exit(EXIT_SUCCESS);
 }
