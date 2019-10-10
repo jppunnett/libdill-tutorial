@@ -2,8 +2,9 @@
    Language book.
 */
 #include <stdio.h>
-#include <stdlib.h>
 #include <libdill.h>
+#include <dirent.h>
+#include <sys/stat.h>
 
 #include "ticker.h"
 
@@ -13,10 +14,73 @@ static void printDirUsage(int64_t nfiles, int64_t nbytes)
 	printf("%ld files\t%.1f GB\n", nfiles, nbytes / 1e9);
 }
 
-// walkDir: recursivly walks dir reporting files sizes through ch
-void walkDir(char *dir, int ch)
+// walkDir: recursivly walks directory reporting files sizes through ch
+void walkDir(char *dirName, int ch)
 {
-	printf("Walking <%s>...\n", dir);
+	//printf("Walking <%s>...\n", dirName);
+
+	DIR *dir = opendir(dirName);
+	if(dir == NULL) {
+		perror("could not open directory");
+		return;
+	}
+
+	char entryName[256];
+	int rc;
+	struct dirent *dp;
+	while((dp = readdir(dir)) != NULL) {
+		rc = snprintf(entryName,
+				sizeof(entryName),
+				"%s/%s", dirName, dp->d_name);
+		if(rc < 0) {
+			fprintf(stderr, "Error building dir entry name.\n");
+			continue;
+		}
+
+		struct stat stats;
+		//rc = stat(dp->d_name, &stats);
+		rc = stat(entryName, &stats);
+		if(rc != 0) {
+			fprintf(stderr, "stat(%s) failed (%d)\n", entryName, rc);
+			continue;
+		}
+
+		// Skip any files or dirs that begin with '.'
+		if(dp->d_name[0] == '.') continue;
+
+		// Check if dir entry is a directory or not
+		if(S_ISDIR(stats.st_mode)) {
+			char subDirName[256];
+			rc = snprintf(subDirName,
+					sizeof(subDirName),
+					"%s/%s", dirName, dp->d_name);
+			if(rc < 0) {
+				fprintf(stderr, "Error building sub dir name.\n");
+				continue;
+			}
+
+			// List contents of sub directory
+			walkDir(subDirName, ch);
+		}
+
+		rc = chsend(ch, &stats.st_size, sizeof(stats.st_size), -1);
+		if(rc < 0) {
+			perror("Could not send size down channel.");
+			break;
+		}
+	}
+
+	if(errno != 0) {
+		int temp = errno;
+		fprintf(stderr, "error traversing %s.\n", entryName);
+		errno = temp;
+		perror("error traversing directory");
+	}
+
+	rc = closedir(dir);
+	if( rc != 0) {
+		perror("could not close directory");
+	}
 }
 
 // walkDirStart: coroutine to walk each directory in dirs.
