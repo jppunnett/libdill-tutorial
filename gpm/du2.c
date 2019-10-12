@@ -123,7 +123,6 @@ int main(int argc, char *argv[])
 	/* Start ticker to periodically display results */
 	int ticker_ch = TickEvery(verbose ? 500 : 0);
 	if (ticker_ch < 0) {
-		perror("time_Tick");
 		exit(EXIT_FAILURE);
 	}
 
