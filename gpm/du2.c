@@ -9,7 +9,6 @@
 
 #include "ticker.h"
 
-
 static void printDirUsage(int64_t nfiles, int64_t nbytes)
 {
 	printf("%ld files\t%.1f GB\n", nfiles, nbytes / 1e9);
@@ -19,7 +18,7 @@ static void printDirUsage(int64_t nfiles, int64_t nbytes)
 void walkDir(char *dirName, int ch)
 {
 	DIR *dir = opendir(dirName);
-	if(dir == NULL) {
+	if (dir == NULL) {
 		perror("could not open directory");
 		fprintf(stderr, "%s\n", dirName);
 		return;
@@ -28,45 +27,45 @@ void walkDir(char *dirName, int ch)
 	char entryName[256] = "";
 	int rc;
 	struct dirent *dp;
-	while((dp = readdir(dir)) != NULL) {
+	while ((dp = readdir(dir)) != NULL) {
 		// Skip current and parent dir entries
-		if(strcmp(dp->d_name, ".") == 0
-				|| strcmp(dp->d_name, "..") == 0)
+		if (strcmp(dp->d_name, ".") == 0
+		    || strcmp(dp->d_name, "..") == 0)
 			continue;
 
 		rc = snprintf(entryName,
-				sizeof(entryName),
-				"%s/%s", dirName, dp->d_name);
-		if(rc < 0) {
-			fprintf(stderr, "Error building dir entry name.\n");
+			      sizeof(entryName), "%s/%s", dirName,
+			      dp->d_name);
+		if (rc < 0) {
+			fprintf(stderr,
+				"Error building dir entry name.\n");
 			break;
 		}
-
 		// Use lstat, not stat, so we don't follow symbolic links. 
 		struct stat stats;
 		rc = lstat(entryName, &stats);
-		if(rc != 0) {
+		if (rc != 0) {
 			perror("lstat");
 			fprintf(stderr, "lstat(%s) failed (%d)\n",
-					entryName, rc);
+				entryName, rc);
 			break;
 		}
-
 		// Check if dir entry is a directory
-		if(S_ISDIR(stats.st_mode)) {
+		if (S_ISDIR(stats.st_mode)) {
 			walkDir(entryName, ch);
 		} else {
 			rc = chsend(ch, &stats.st_size,
-					sizeof(stats.st_size), -1);
-			if(rc < 0) {
-				perror("Could not send size down channel.");
+				    sizeof(stats.st_size), -1);
+			if (rc < 0) {
+				perror
+				    ("Could not send size down channel.");
 				break;
 			}
 		}
 	}
 
 	rc = closedir(dir);
-	if(rc != 0) {
+	if (rc != 0) {
 		perror("could not close directory");
 	}
 }
@@ -83,7 +82,6 @@ coroutine void walkDirStart(char *dirs[], int ndirs, int ch)
 		perror("chdone on size channel failed");
 	}
 }
-
 
 char *curdir[] = { "." };
 
@@ -111,13 +109,13 @@ int main(int argc, char *argv[])
 	/* Channel to report files sizes */
 	int filesz_ch[2];
 	rc = chmake(filesz_ch);
-	if(rc != 0) {
+	if (rc != 0) {
 		perror("could not make size channel");
 		exit(EXIT_FAILURE);
 	}
 
 	rc = go(walkDirStart(roots, ndirs, filesz_ch[1]));
-	if(rc < 0) {
+	if (rc < 0) {
 		perror("could not start walkDirStart");
 		exit(EXIT_FAILURE);
 	}
@@ -134,7 +132,8 @@ int main(int argc, char *argv[])
 	int64_t size = 0;
 	int64_t tick = 0;
 	struct chclause clauses[] = {
-		{CHRECV, filesz_ch[0], &size, sizeof(size)},
+		{CHRECV, filesz_ch[0], &size, sizeof(size)}
+		,
 		{CHRECV, ticker_ch, &tick, sizeof(tick)}
 	};
 
@@ -157,7 +156,7 @@ int main(int argc, char *argv[])
 			nbytes += size;
 			break;
 		case 1:
-			if(verbose) {
+			if (verbose) {
 				printDirUsage(nfiles, nbytes);
 			}
 			break;
