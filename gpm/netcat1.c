@@ -4,21 +4,26 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <string.h>
 
+#include <libdill.h>
+
+
+#define LD_500_MS \
+	(now() + 500)
+
+#define get_errno() \
+	(errno == 0 ? "none" : strerror(errno))
 
 #define log_fatal(msg, ...) \
 	do {\
-		fprintf(stderr, "Fatal %s:%d: " msg "\n",\
-			__FILE__, __LINE__, ##__VA_ARGS__);\
+		fprintf(stderr, "[ERROR] %s:%d (errno: %s): " msg "\n",\
+			__FILE__, __LINE__, get_errno(), ##__VA_ARGS__);\
 		fflush(stderr);\
 		abort();\
 	} while(0)
 
-
-int tcp_connect(const char* addr)
-{
-	return -1;
-}
 
 void must_copy(int dst, int src)
 {
@@ -28,10 +33,18 @@ void must_copy(int dst, int src)
 
 int main()
 {
-	const char *addr = "localhost:8000";
-	int conn = tcp_connect(addr);
+	const char* host = "localhost";
+	const int port = 8000;
+
+	int conn = happyeyeballs_connect(host, port, LD_500_MS);
 	if (conn < 0) {
-		log_fatal("could not connect to %s", addr);
+		log_fatal("could not connect to %s:%d", host, port);
+	}
+
+	printf("Connected!\n");
+	int rc = tcp_close(conn, LD_500_MS);
+	if (rc != 0) {
+		log_fatal("Could not close connection");
 	}
 
 	//must_copy(stdout, conn);
