@@ -29,6 +29,8 @@ coroutine void handleConn(int s)
 		assert(rc == 0);
 	}
 
+	printf("Disonnecting from socket: %d\n", s);
+
 	rc = tcp_close(s, -1);
 	if (rc != 0 && errno != ECONNRESET)
 		perror("tcp_close");

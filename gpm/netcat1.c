@@ -25,10 +25,28 @@
 	} while(0)
 
 
-void must_copy(int dst, int src)
+void must_copy(FILE *dst, int src)
 {
-	assert(dst >= 0);
+	assert(dst);
 	assert(src >= 0);
+
+	int rc;
+	char buf[128];
+
+	while (1) {
+		for (int i = 0; i < sizeof(buf); ++i) buf[i] = '\0';
+
+		rc = brecv(src, buf, sizeof(buf)-1, -1);
+		if (rc != 0) {
+			if (errno != ECONNRESET) {
+				perror("brecv");
+			}
+			break;
+		}
+
+		fprintf(dst, "%s", buf);
+		fflush(dst);
+	}
 }
 
 int main()
@@ -42,12 +60,13 @@ int main()
 	}
 
 	printf("Connected!\n");
+
+	must_copy(stdout, conn);
 	int rc = tcp_close(conn, LD_500_MS);
 	if (rc != 0) {
 		log_fatal("Could not close connection");
 	}
 
-	//must_copy(stdout, conn);
 
 	return 0;
 }
