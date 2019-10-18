@@ -44,6 +44,9 @@ int main(int argc, char *argv[])
 {
 	int port = 8000;
 
+	if (argc > 1)
+		port = atoi(argv[1]);
+
 	struct ipaddr addr;
 	int rc = ipaddr_local(&addr, NULL, port, 0);
 	if (rc < 0)
