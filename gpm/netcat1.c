@@ -31,21 +31,11 @@ void must_copy(FILE *dst, int src)
 	assert(src >= 0);
 
 	int rc;
-	char buf[128];
-
-	while (1) {
-		for (int i = 0; i < sizeof(buf); ++i) buf[i] = '\0';
-
-		rc = brecv(src, buf, sizeof(buf)-1, -1);
-		if (rc != 0) {
-			if (errno != ECONNRESET) {
-				perror("brecv");
-			}
-			break;
-		}
-
-		fprintf(dst, "%s", buf);
-		fflush(dst);
+	while(1) {
+		unsigned char c;
+		rc = brecv(src, &c, 1, -1);
+		if(rc == -1 && ((errno == EPIPE) || (ECONNRESET))) break;
+		fprintf(dst, "%c", c);
 	}
 }
 
@@ -59,14 +49,12 @@ int main()
 		log_fatal("could not connect to %s:%d", host, port);
 	}
 
-	printf("Connected!\n");
-
 	must_copy(stdout, conn);
+
 	int rc = tcp_close(conn, LD_500_MS);
 	if (rc != 0) {
 		log_fatal("Could not close connection");
 	}
-
 
 	return 0;
 }
