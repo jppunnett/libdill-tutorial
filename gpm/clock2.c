@@ -1,10 +1,14 @@
 // clock2: TCP server that periodically writes the time.
 // This variation handles connections concurrently.
 // See chapter 8 in The Go Programming Language.
+
 #include <stdio.h>
-#include <libdill.h>
 #include <assert.h>
 #include <time.h>
+
+#include <libdill.h>
+
+#include "log.h"
 
 coroutine void handleConn(int s)
 {
@@ -36,26 +40,39 @@ coroutine void handleConn(int s)
 		perror("tcp_close");
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+	int port = 8000;
+
 	struct ipaddr addr;
-	int rc = ipaddr_local(&addr, NULL, 8000, 0);
-	assert(rc >= 0);
+	int rc = ipaddr_local(&addr, NULL, port, 0);
+	if (rc < 0)
+		log_fatal("Could build localhost address on port %d", port);
 
 	int ls = tcp_listen(&addr, 10);
-	assert(ls >= 0);
+	if (ls < 0)
+		log_fatal("Could not listen on port %d", port);
+
+	printf("Listening on port %d\n", port);
 
 	while (1) {
 		int s = tcp_accept(ls, NULL, -1);
-		assert(s >= 0);
+		if (s < 0) {
+			perror("tcp_accept");
+			goto cleanup;
+		}
 
-		// Handle each connection concurrently.
 		rc = go(handleConn(s));
-		assert(rc >= 0);
+		if (rc < 0) {
+			perror("Could not launch handleConn");
+			goto cleanup;
+		}
 	}
 
+cleanup:
 	rc = tcp_close(ls, -1);
-	assert(rc == 0);
+	if (rc != 0)
+		log_fatal("Could not close connection.");
 
 	return 0;
 }
