@@ -50,11 +50,11 @@ int main(int argc, char *argv[])
 	struct ipaddr addr;
 	int rc = ipaddr_local(&addr, NULL, port, 0);
 	if (rc < 0)
-		log_fatal("Could build localhost address on port %d", port);
+		log_fatal("ipaddr_local localhost:%d", port);
 
 	int ls = tcp_listen(&addr, 10);
 	if (ls < 0)
-		log_fatal("Could not listen on port %d", port);
+		log_fatal("tcp_listen on port %d", port);
 
 	printf("Listening on port %d\n", port);
 
