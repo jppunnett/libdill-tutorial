@@ -40,10 +40,27 @@ coroutine void showClock(const char *host, int port)
 		log_error("Could not close connection");
 }
 
+static int getHostAndPort(const char *clock_spec, char *host, int *port)
+{
+	if (clock_spec == NULL || host == NULL || port == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	char *pos = strchr(clock_spec, ':');
+	if (pos == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc == 1) {
-		printf("Usage: %s <host:port> [<host:port> ...]\n", argv[0]);
+		printf("Usage: %s <host:port> [<host:port> ...]\n",
+		       argv[0]);
 		return 1;
 	}
 
@@ -52,13 +69,21 @@ int main(int argc, char *argv[])
 	if (b < 0)
 		log_fatal("Could not create bundle");
 
-	rc = bundle_go(b, showClock("localhost", 8000));
-	if (rc < 0)
-		log_fatal("Could not launch showClock");
+	while (--argc > 0) {
+		printf("argv[argc] = %s\n", argv[argc]);
+		char host[255];
+		int port = 0;
 
-	rc = bundle_go(b, showClock("localhost", 8001));
-	if (rc < 0)
-		log_fatal("Could not launch showClock");
+		rc = getHostAndPort(argv[argc], host, &port);
+		if (rc != 0) {
+			log_error("getHostAndPort %s\n", argv[argc]);
+			continue;
+		}
+
+		rc = bundle_go(b, showClock(host, port));
+		if (rc < 0)
+			log_fatal("Could not launch showClock");
+	}
 
 	rc = bundle_wait(b, -1);
 	if (rc != 0)
