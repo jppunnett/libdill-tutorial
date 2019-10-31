@@ -10,16 +10,17 @@
 #include "dill_helper.h"
 #include "log.h"
 
-void must_copy(FILE *dst, int src)
+void must_copy(FILE * dst, int src)
 {
 	assert(dst);
 	assert(src >= 0);
 
 	int rc;
-	while(1) {
+	while (1) {
 		unsigned char c;
 		rc = brecv(src, &c, 1, -1);
-		if(rc == -1 && ((errno == EPIPE) || (ECONNRESET))) break;
+		if (rc == -1 && ((errno == EPIPE) || (ECONNRESET)))
+			break;
 		fprintf(dst, "%c", c);
 	}
 }
@@ -41,19 +42,24 @@ coroutine void showClock(const char *host, int port)
 
 int main(int argc, char *argv[])
 {
+	if (argc == 1) {
+		printf("Usage: %s <host:port> [<host:port> ...]\n", argv[0]);
+		return 1;
+	}
+
 	int rc;
 	int b = bundle();
 	if (b < 0)
 		log_fatal("Could not create bundle");
-	
+
 	rc = bundle_go(b, showClock("localhost", 8000));
 	if (rc < 0)
 		log_fatal("Could not launch showClock");
-	
+
 	rc = bundle_go(b, showClock("localhost", 8001));
 	if (rc < 0)
 		log_fatal("Could not launch showClock");
-	
+
 	rc = bundle_wait(b, -1);
 	if (rc != 0)
 		log_fatal("bundle_wait");
@@ -62,4 +68,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
