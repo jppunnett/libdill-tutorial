@@ -53,6 +53,13 @@ static int getHostAndPort(const char *clock_spec, char *host, int *port)
 		return -1;
 	}
 
+	size_t len = pos - clock_spec;
+	for (int i = 0; i < len; ++i)
+		host[i] = clock_spec[i];
+	host[len] = '\0';
+
+	*port = atoi(pos + 1);
+
 	return 0;
 }
 
@@ -79,6 +86,7 @@ int main(int argc, char *argv[])
 			log_error("getHostAndPort %s\n", argv[argc]);
 			continue;
 		}
+		printf("host = %s, port = %d\n", host, port);
 
 		rc = bundle_go(b, showClock(host, port));
 		if (rc < 0)
